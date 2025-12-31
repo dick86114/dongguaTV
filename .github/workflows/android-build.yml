@@ -93,14 +93,19 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.custom_icon_url != '' }}
         run: |
           echo "📥 Downloading custom icon from: ${{ inputs.custom_icon_url }}"
-          curl -L -o public/icon.png "${{ inputs.custom_icon_url }}"
-          if [ $? -eq 0 ]; then
+
+          # 尝试下载 (忽略 SSL 错误,因为某些图床证书配置有问题)
+          curl -L -k -o public/icon.png "${{ inputs.custom_icon_url }}"
+
+          if [ $? -eq 0 ] && [ -s public/icon.png ]; then
             echo "✅ Custom icon downloaded successfully"
             # 显示图片信息
             file public/icon.png
             identify public/icon.png 2>/dev/null || echo "Image info not available"
           else
             echo "❌ Failed to download custom icon, using default"
+            # 删除可能损坏的文件
+            rm -f public/icon.png
           fi
 
       # 从网站图标生成 Android App 图标（各分辨率）
