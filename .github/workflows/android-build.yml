@@ -94,17 +94,48 @@ jobs:
         run: |
           echo "📥 Downloading custom icon from: ${{ inputs.custom_icon_url }}"
 
-          # 尝试下载 (忽略 SSL 错误,因为某些图床证书配置有问题)
-          curl -L -k -o public/icon.png "${{ inputs.custom_icon_url }}"
+          # 尝试多种方法下载图标
+          DOWNLOAD_SUCCESS=false
 
+          # 方法 1: curl with --ssl-no-revoke (忽略 SSL 撤销检查)
+          echo "尝试方法 1: curl with --ssl-no-revoke"
+          curl -L --ssl-no-revoke --connect-timeout 10 -o public/icon.png "${{ inputs.custom_icon_url }}" 2>/dev/null
           if [ $? -eq 0 ] && [ -s public/icon.png ]; then
+            DOWNLOAD_SUCCESS=true
+          else
+            rm -f public/icon.png
+
+            # 方法 2: wget with --no-check-certificate
+            echo "尝试方法 2: wget with --no-check-certificate"
+            wget --no-check-certificate --timeout=10 -O public/icon.png "${{ inputs.custom_icon_url }}" 2>/dev/null
+            if [ $? -eq 0 ] && [ -s public/icon.png ]; then
+              DOWNLOAD_SUCCESS=true
+            else
+              rm -f public/icon.png
+
+              # 方法 3: curl with -k (忽略所有 SSL 验证)
+              echo "尝试方法 3: curl with -k"
+              curl -L -k --connect-timeout 10 -o public/icon.png "${{ inputs.custom_icon_url }}" 2>/dev/null
+              if [ $? -eq 0 ] && [ -s public/icon.png ]; then
+                DOWNLOAD_SUCCESS=true
+              else
+                rm -f public/icon.png
+              fi
+            fi
+          fi
+
+          if [ "$DOWNLOAD_SUCCESS" = true ]; then
             echo "✅ Custom icon downloaded successfully"
             # 显示图片信息
             file public/icon.png
             identify public/icon.png 2>/dev/null || echo "Image info not available"
           else
-            echo "❌ Failed to download custom icon, using default"
-            # 删除可能损坏的文件
+            echo "❌ Failed to download custom icon after 3 attempts"
+            echo "   This may be due to:"
+            echo "   - Invalid URL or unreachable server"
+            echo "   - Server SSL/TLS configuration issues"
+            echo "   - Firewall or network restrictions"
+            echo "   Falling back to default icon"
             rm -f public/icon.png
           fi
 
