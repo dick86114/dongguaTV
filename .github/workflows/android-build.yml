@@ -65,11 +65,16 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           echo "📝 Applying manual configuration..."
-          # 使用 jq 修改 JSON (ubuntu-latest 预装了 jq)
+
+          # 1. 修改 capacitor.config.json
           tmp=$(mktemp)
           jq --arg url "${{ inputs.server_url }}" --arg name "${{ inputs.app_name }}" \
              '.server.url = $url | .appName = $name' capacitor.config.json > "$tmp" && mv "$tmp" capacitor.config.json
-          
+
+          # 2. 修改 Android strings.xml (应用显示名称)
+          sed -i "s/<string name=\"app_name\">[^<]*<\/string>/<string name=\"app_name\">${{ inputs.app_name }}<\/string>/" android/app/src/main/res/values/strings.xml
+          sed -i "s/<string name=\"title_activity_main\">[^<]*<\/string>/<string name=\"title_activity_main\">${{ inputs.app_name }}<\/string>/" android/app/src/main/res/values/strings.xml
+
           echo "✅ Configuration updated:"
           echo "   App Name: ${{ inputs.app_name }}"
           echo "   Server URL: ${{ inputs.server_url }}"
@@ -79,6 +84,9 @@ jobs:
         run: |
           echo "=== Capacitor Config ==="
           cat capacitor.config.json
+          echo ""
+          echo "=== Android App Name ==="
+          cat android/app/src/main/res/values/strings.xml | grep "app_name"
 
       # 下载自定义图标或使用默认图标
       - name: Download Custom Icon (Optional)
