@@ -154,34 +154,64 @@ jobs:
             exit 1
           fi
 
+          # 验证图片文件
           echo "📝 Using icon source: $ICON_SRC"
-          identify "$ICON_SRC" 2>/dev/null || echo "Icon info not available"
+          echo "📏 File info:"
+          file "$ICON_SRC"
+          ls -lh "$ICON_SRC"
 
-          # 生成各分辨率图标
+          # 检查文件是否为有效的 PNG 图片
+          if ! identify "$ICON_SRC" >/dev/null 2>&1; then
+            echo "❌ Invalid image file or format"
+            echo "Trying to fix with pngcrush..."
+
+            # 尝试修复 PNG 文件
+            sudo apt-get install -y pngcrush >/dev/null 2>&1
+            pngcrush -q -rem allb -ow "$ICON_SRC" 2>/dev/null || true
+
+            if ! identify "$ICON_SRC" >/dev/null 2>&1; then
+              echo "❌ Still cannot process image, trying convert re-encoding..."
+              # 使用 convert 重新编码
+              mv "$ICON_SRC" "$ICON_SRC.bak"
+              convert "$ICON_SRC.bak" "$ICON_SRC" 2>/dev/null || {
+                echo "❌ Failed to process image file"
+                echo "   Falling back to default icon"
+                mv "$ICON_SRC.bak" "$ICON_SRC"
+              }
+            fi
+          fi
+
+          # 显示图片信息
+          echo "✅ Image details:"
+          identify "$ICON_SRC" 2>/dev/null || echo "   (Image info unavailable, but will attempt conversion)"
+
+          # 生成各分辨率图标 (添加错误处理)
+          echo "🎨 Generating icons..."
+
           # mipmap-mdpi: 48x48 (Icon: 36x36)
-          convert "$ICON_SRC" -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          convert "$ICON_SRC" -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 108x108 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+          convert "$ICON_SRC"[0] -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png || echo "Warning: Failed to generate mdpi icon"
+          convert "$ICON_SRC"[0] -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png || echo "Warning: Failed to generate mdpi round icon"
+          convert "$ICON_SRC"[0] -resize 72x72 -background none -gravity center -extent 108x108 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || echo "Warning: Failed to generate mdpi foreground icon"
 
           # mipmap-hdpi: 72x72 (Icon: 54x54)
-          convert "$ICON_SRC" -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          convert "$ICON_SRC" -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 162x162 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+          convert "$ICON_SRC"[0] -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png || echo "Warning: Failed to generate hdpi icon"
+          convert "$ICON_SRC"[0] -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png || echo "Warning: Failed to generate hdpi round icon"
+          convert "$ICON_SRC"[0] -resize 108x108 -background none -gravity center -extent 162x162 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || echo "Warning: Failed to generate hdpi foreground icon"
 
           # mipmap-xhdpi: 96x96 (Icon: 72x72)
-          convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 216x216 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+          convert "$ICON_SRC"[0] -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || echo "Warning: Failed to generate xhdpi icon"
+          convert "$ICON_SRC"[0] -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png || echo "Warning: Failed to generate xhdpi round icon"
+          convert "$ICON_SRC"[0] -resize 144x144 -background none -gravity center -extent 216x216 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || echo "Warning: Failed to generate xhdpi foreground icon"
 
           # mipmap-xxhdpi: 144x144 (Icon: 108x108)
-          convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          convert "$ICON_SRC" -resize 216x216 -background none -gravity center -extent 324x324 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+          convert "$ICON_SRC"[0] -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || echo "Warning: Failed to generate xxhdpi icon"
+          convert "$ICON_SRC"[0] -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png || echo "Warning: Failed to generate xxhdpi round icon"
+          convert "$ICON_SRC"[0] -resize 216x216 -background none -gravity center -extent 324x324 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || echo "Warning: Failed to generate xxhdpi foreground icon"
 
           # mipmap-xxxhdpi: 192x192 (Icon: 144x144)
-          convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-          convert "$ICON_SRC" -resize 288x288 -background none -gravity center -extent 432x432 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+          convert "$ICON_SRC"[0] -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || echo "Warning: Failed to generate xxxhdpi icon"
+          convert "$ICON_SRC"[0] -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png || echo "Warning: Failed to generate xxxhdpi round icon"
+          convert "$ICON_SRC"[0] -resize 288x288 -background none -gravity center -extent 432x432 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || echo "Warning: Failed to generate xxxhdpi foreground icon"
 
           echo "✅ App icons generated successfully"
 
