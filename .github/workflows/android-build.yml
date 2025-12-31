@@ -18,6 +18,10 @@ on:
         description: 'Version Tag (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
+      custom_icon_url:
+        description: '自定义应用图标 URL (可选,留空则使用默认图标)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -76,42 +80,66 @@ jobs:
           echo "=== Capacitor Config ==="
           cat capacitor.config.json
 
+      # 下载自定义图标或使用默认图标
+      - name: Download Custom Icon (Optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.custom_icon_url != '' }}
+        run: |
+          echo "📥 Downloading custom icon from: ${{ inputs.custom_icon_url }}"
+          curl -L -o public/icon.png "${{ inputs.custom_icon_url }}"
+          if [ $? -eq 0 ]; then
+            echo "✅ Custom icon downloaded successfully"
+            # 显示图片信息
+            file public/icon.png
+            identify public/icon.png 2>/dev/null || echo "Image info not available"
+          else
+            echo "❌ Failed to download custom icon, using default"
+          fi
+
       # 从网站图标生成 Android App 图标（各分辨率）
-      - name: Generate App Icons from Website Icon
+      - name: Generate App Icons
         run: |
           # 安装 ImageMagick
           sudo apt-get update && sudo apt-get install -y imagemagick
-          
+
           # 源图标
           ICON_SRC="public/icon.png"
-          
+
+          # 检查图标文件是否存在
+          if [ ! -f "$ICON_SRC" ]; then
+            echo "❌ Icon file not found: $ICON_SRC"
+            exit 1
+          fi
+
+          echo "📝 Using icon source: $ICON_SRC"
+          identify "$ICON_SRC" 2>/dev/null || echo "Icon info not available"
+
           # 生成各分辨率图标
           # mipmap-mdpi: 48x48 (Icon: 36x36)
           convert "$ICON_SRC" -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
           convert "$ICON_SRC" -resize 36x36 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
           convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 108x108 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-          
+
           # mipmap-hdpi: 72x72 (Icon: 54x54)
           convert "$ICON_SRC" -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           convert "$ICON_SRC" -resize 54x54 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
           convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 162x162 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-          
+
           # mipmap-xhdpi: 96x96 (Icon: 72x72)
           convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
           convert "$ICON_SRC" -resize 72x72 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
           convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 216x216 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-          
+
           # mipmap-xxhdpi: 144x144 (Icon: 108x108)
           convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           convert "$ICON_SRC" -resize 108x108 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           convert "$ICON_SRC" -resize 216x216 -background none -gravity center -extent 324x324 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-          
+
           # mipmap-xxxhdpi: 192x192 (Icon: 144x144)
           convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           convert "$ICON_SRC" -resize 144x144 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           convert "$ICON_SRC" -resize 288x288 -background none -gravity center -extent 432x432 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-          
-          echo "✅ App icons generated from website icon"
+
+          echo "✅ App icons generated successfully"
 
       - name: Sync Capacitor
         run: npx cap sync android
